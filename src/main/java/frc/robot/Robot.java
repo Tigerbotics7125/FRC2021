@@ -8,8 +8,10 @@
 package frc.robot;
 
 import com.ctre.phoenix.motorcontrol.ControlMode;
+import com.ctre.phoenix.motorcontrol.can.TalonSRX;
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
+import com.ctre.phoenix.sensors.PigeonIMU;
 
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Joystick;
@@ -53,6 +55,9 @@ public class Robot extends TimedRobot {
   private boolean index = false;
   private double indexStart;
 
+  private WPI_TalonSRX pigeonTalon;
+  private PigeonIMU pigeon;
+
 
 
   /**
@@ -82,8 +87,11 @@ public class Robot extends TimedRobot {
 
     drawBridgeDown = new DigitalInput(0);
 
-   
-    
+    // pigeon
+    pigeonTalon = new WPI_TalonSRX(10);
+    pigeon = new PigeonIMU(pigeonTalon);
+
+    pigeon.setYaw(0.0);
   }
 
   /**
@@ -184,21 +192,47 @@ public class Robot extends TimedRobot {
     }
 
 
+    // Pigeon
+    double[] ypr = new double[3];
+    pigeon.getYawPitchRoll(ypr);
+    SmartDashboard.putNumberArray("YPR", ypr);
+
+    /*
+    SmartDashboard.putNumber("Yaw", ypr[0]);
+    SmartDashboard.putNumber("Pitch", ypr[1]);
+    SmartDashboard.putNumber("Roll", ypr[2]);
+    */
+
+    double[] accelxyz = new double[3];
+    pigeon.getAccelerometerAngles(accelxyz);
+    SmartDashboard.putNumberArray("Accel", accelxyz);
+
+    /*
+    SmartDashboard.putNumber("Accel x", accelxyz[0]);
+    SmartDashboard.putNumber("Accel y", accelxyz[1]);
+    SmartDashboard.putNumber("Accel z", accelxyz[2]);
+    */
+
+    double[] gyroxyz = new double[3];
+    pigeon.getRawGyro(gyroxyz);
+    SmartDashboard.putNumberArray("Gryo", gyroxyz);
+    
+    /*
+    SmartDashboard.putNumber("Gyro x", gyroxyz[0]);
+    SmartDashboard.putNumber("Gyro y", gyroxyz[1]);
+    SmartDashboard.putNumber("Gyro z", gyroxyz[2]);
+    */
+
+
     // drawbridge
-/*
     if (yButton) {
       drawBridge.set(1);
+    } else if (xButton && drawBridgeDown.get()) {
+      drawBridge.set(-1);
+    } else {
+      drawBridge.set(0);
     }
 
-    if (xButton && drawBridgeDown.get()) {
-      drawBridge.set(-1);
-    }
-*/
-    // intake
-/*  if (aButton) {
-      intake.set(.25);
-    }
-*/
     // index
     if (!index && bButton) {
       index = true;
@@ -228,15 +262,12 @@ public class Robot extends TimedRobot {
     }
 
     // shooter
-
     shooter.set(ControlMode.PercentOutput, rightTrigger*.5);
 
     // hood
-
     hood.set(ControlMode.PercentOutput, rightXAxisWDeadzone*.25);
     
     // chassis / drivechain
-
     //chassis.arcadeDrive(leftYAxisWDeadzone, leftXAxisWDeadzone);
     chassis.arcadeDrive(0, 0);
 
