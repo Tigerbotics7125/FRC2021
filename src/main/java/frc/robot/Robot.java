@@ -13,6 +13,14 @@ import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
 import com.ctre.phoenix.sensors.PigeonIMU;
 
+import org.opencv.core.Mat;
+import org.opencv.imgproc.Imgproc;
+
+import edu.wpi.cscore.CvSink;
+import edu.wpi.cscore.CvSource;
+import edu.wpi.cscore.UsbCamera;
+import edu.wpi.first.cameraserver.CameraServer;
+import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.Spark;
@@ -34,6 +42,10 @@ public class Robot extends TimedRobot {
   private static final String kCustomAuto = "My Auto";
   private String m_autoSelected;
   private final SendableChooser<String> m_chooser = new SendableChooser<>();
+
+  UsbCamera camera1;
+  UsbCamera camera2;
+  NetworkTableEntry cameraSelection;
 
   private Joystick gamepad;
 
@@ -69,7 +81,32 @@ public class Robot extends TimedRobot {
     m_chooser.setDefaultOption("Default Auto", kDefaultAuto);
     m_chooser.addOption("My Auto", kCustomAuto);
     SmartDashboard.putData("Auto choices", m_chooser);
+
+    camera1 = CameraServer.getInstance().startAutomaticCapture(0);
+    camera2 = CameraServer.getInstance().startAutomaticCapture(1);
+
     
+    /* not sure how it works, might not need it
+    new Thread(() -> {
+      UsbCamera camera = CameraServer.getInstance().startAutomaticCapture();
+      camera.setResolution(1280, 720);
+
+      CvSink cvSink = CameraServer.getInstance().getVideo();
+      CvSource outputStream = CameraServer.getInstance().putVideo("Blur", 1280, 720);
+
+      Mat source = new Mat();
+      Mat output = new Mat();
+
+      while(!Thread.interrupted()) {
+        if (cvSink.grabFrame(source) == 0) {
+          continue;
+        }
+        Imgproc.cvtColor(source, output, Imgproc.COLOR_BGR2GRAY);
+        outputStream.putFrame(output);
+      }
+    }).start();
+    */
+
     gamepad = new Joystick(0);
 
     leftMotor = new WPI_VictorSPX(0);
@@ -216,7 +253,7 @@ public class Robot extends TimedRobot {
     double[] gyroxyz = new double[3];
     pigeon.getRawGyro(gyroxyz);
     SmartDashboard.putNumberArray("Gryo", gyroxyz);
-    
+
     /*
     SmartDashboard.putNumber("Gyro x", gyroxyz[0]);
     SmartDashboard.putNumber("Gyro y", gyroxyz[1]);
