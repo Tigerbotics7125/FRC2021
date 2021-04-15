@@ -70,7 +70,23 @@ public class Robot extends TimedRobot {
   private WPI_TalonSRX pigeonTalon;
   private PigeonIMU pigeon;
 
+  private boolean aButton;
+  private boolean bButton;
+  private boolean xButton;
+  private boolean yButton;
+  private boolean leftBumper;
+  private boolean rightBumper;
+  private double leftXAxis; // left negitive, right positive
+  private double leftYAxis; // up negitive, down positive
+  private double leftTrigger; // no negitive
+  private double rightTrigger; // no negitive
+  private double rightXAxis; // left negitive, right positive
+  private double rightYAxis; // up negitive, down positive
 
+  private double leftXAxisWDeadzone;
+  private double leftYAxisWDeadzone;
+  private double rightXAxisWDeadzone;
+  private double rightYAxisWDeadzone;
 
   /**
    * This function is run when the robot is first started up and should be
@@ -84,28 +100,6 @@ public class Robot extends TimedRobot {
 
     camera1 = CameraServer.getInstance().startAutomaticCapture(0);
     camera2 = CameraServer.getInstance().startAutomaticCapture(1);
-
-    
-    /* not sure how it works, might not need it
-    new Thread(() -> {
-      UsbCamera camera = CameraServer.getInstance().startAutomaticCapture();
-      camera.setResolution(1280, 720);
-
-      CvSink cvSink = CameraServer.getInstance().getVideo();
-      CvSource outputStream = CameraServer.getInstance().putVideo("Blur", 1280, 720);
-
-      Mat source = new Mat();
-      Mat output = new Mat();
-
-      while(!Thread.interrupted()) {
-        if (cvSink.grabFrame(source) == 0) {
-          continue;
-        }
-        Imgproc.cvtColor(source, output, Imgproc.COLOR_BGR2GRAY);
-        outputStream.putFrame(output);
-      }
-    }).start();
-    */
 
     gamepad = new Joystick(0);
 
@@ -187,88 +181,11 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void teleopPeriodic() {
-    // get current gamepad state
-    boolean aButton = gamepad.getRawButton(1);
-    boolean bButton = gamepad.getRawButton(2);
-    boolean xButton = gamepad.getRawButton(3);
-    boolean yButton = gamepad.getRawButton(4);
-    boolean leftBumper = gamepad.getRawButton(5);
-    boolean rightBumper = gamepad.getRawButton(6);
-    double leftXAxis = gamepad.getRawAxis(0); // left negitive, right positive
-    double leftYAxis = gamepad.getRawAxis(1); // up negitive, down positive
-    double leftTrigger = gamepad.getRawAxis(2); // no negitive
-    double rightTrigger = gamepad.getRawAxis(3); // no negitive
-    double rightXAxis = gamepad.getRawAxis(4); // left negitive, right positive
-    double rightYAxis = gamepad.getRawAxis(5); // up negitive, down positive
 
-    double leftXAxisWDeadzone = 0;
-    double leftYAxisWDeadzone = 0;
-    double rightXAxisWDeadzone = 0;
-    double rightYAxisWDeadzone = 0;
+    updateGamepadStatus();
+    getAndSendPigeonStatus();
 
-    // deadzone
-    if (leftXAxis < .1 && leftXAxis > -.1) {
-      leftXAxisWDeadzone = 0;
-    } else {
-      leftXAxisWDeadzone = leftXAxis;
-    }
-    if (leftYAxis < .1 && leftYAxis > -.1) {
-      leftYAxisWDeadzone = 0;
-    } else {
-      leftYAxisWDeadzone = leftYAxis;
-    }
-    if (rightXAxis < .1 && rightXAxis > -.1) {
-      rightXAxisWDeadzone = 0;
-    } else {
-      rightXAxisWDeadzone = rightXAxis;
-    }
-    if (rightYAxis < .1 && rightYAxis > -.1) {
-      rightYAxisWDeadzone = 0;
-    } else {
-      rightYAxisWDeadzone = rightYAxis;
-    }
-
-
-    // Pigeon
-    double[] ypr = new double[3];
-    pigeon.getYawPitchRoll(ypr);
-    SmartDashboard.putNumberArray("YPR", ypr);
-
-    /*
-    SmartDashboard.putNumber("Yaw", ypr[0]);
-    SmartDashboard.putNumber("Pitch", ypr[1]);
-    SmartDashboard.putNumber("Roll", ypr[2]);
-    */
-
-    double[] accelxyz = new double[3];
-    pigeon.getAccelerometerAngles(accelxyz);
-    SmartDashboard.putNumberArray("Accel", accelxyz);
-
-    /*
-    SmartDashboard.putNumber("Accel x", accelxyz[0]);
-    SmartDashboard.putNumber("Accel y", accelxyz[1]);
-    SmartDashboard.putNumber("Accel z", accelxyz[2]);
-    */
-
-    double[] gyroxyz = new double[3];
-    pigeon.getRawGyro(gyroxyz);
-    SmartDashboard.putNumberArray("Gryo", gyroxyz);
-
-    /*
-    SmartDashboard.putNumber("Gyro x", gyroxyz[0]);
-    SmartDashboard.putNumber("Gyro y", gyroxyz[1]);
-    SmartDashboard.putNumber("Gyro z", gyroxyz[2]);
-    */
-
-
-    // drawbridge
-    if (yButton) {
-      drawBridge.set(1);
-    } else if (xButton && drawBridgeDown.get()) {
-      drawBridge.set(-1);
-    } else {
-      drawBridge.set(0);
-    }
+    drawbridge(yButton, xButton);
 
     // index
     if (!index && bButton) {
@@ -299,17 +216,91 @@ public class Robot extends TimedRobot {
     }
 
     // shooter
-    shooter.set(ControlMode.PercentOutput, rightTrigger*.5);
+    shooter.set(ControlMode.PercentOutput, rightTrigger*1);
 
     // hood
     hood.set(ControlMode.PercentOutput, rightXAxisWDeadzone*.25);
     
     // chassis / drivechain
-    //chassis.arcadeDrive(leftYAxisWDeadzone, leftXAxisWDeadzone);
-    chassis.arcadeDrive(0, 0);
+    chassis.arcadeDrive(leftYAxisWDeadzone, leftXAxisWDeadzone);
+    
 
   }
   
+  private void drawbridge(boolean upButton, boolean downButton) {
+    if (upButton) {
+      drawBridge.set(1);
+    } else if (downButton && drawBridgeDown.get()) {
+      drawBridge.set(-1);
+    } else {
+      drawBridge.set(0);
+    }
+  }
+
+  private void getAndSendPigeonStatus() {
+    double[] ypr = new double[3];
+    pigeon.getYawPitchRoll(ypr);
+    SmartDashboard.putNumberArray("YPR", ypr);
+    SmartDashboard.putNumber("Yaw", ypr[0]);
+    SmartDashboard.putNumber("Pitch", ypr[1]);
+    SmartDashboard.putNumber("Roll", ypr[2]);
+
+    double[] accelxyz = new double[3];
+    pigeon.getAccelerometerAngles(accelxyz);
+    SmartDashboard.putNumberArray("Accel", accelxyz);
+    SmartDashboard.putNumber("Accel x", accelxyz[0]);
+    SmartDashboard.putNumber("Accel y", accelxyz[1]);
+    SmartDashboard.putNumber("Accel z", accelxyz[2]);
+
+    double[] gyroxyz = new double[3];
+    pigeon.getRawGyro(gyroxyz);
+    SmartDashboard.putNumberArray("Gryo", gyroxyz);
+    SmartDashboard.putNumber("Gyro x", gyroxyz[0]);
+    SmartDashboard.putNumber("Gyro y", gyroxyz[1]);
+    SmartDashboard.putNumber("Gyro z", gyroxyz[2]);
+    
+  }
+
+  private void updateGamepadStatus() {
+    aButton = gamepad.getRawButton(1);
+    bButton = gamepad.getRawButton(2);
+    xButton = gamepad.getRawButton(3);
+    yButton = gamepad.getRawButton(4);
+    leftBumper = gamepad.getRawButton(5);
+    rightBumper = gamepad.getRawButton(6);
+    leftXAxis = gamepad.getRawAxis(0); // left negitive, right positive
+    leftYAxis = gamepad.getRawAxis(1); // up negitive, down positive
+    leftTrigger = gamepad.getRawAxis(2); // no negitive
+    rightTrigger = gamepad.getRawAxis(3); // no negitive
+    rightXAxis = gamepad.getRawAxis(4); // left negitive, right positive
+    rightYAxis = gamepad.getRawAxis(5); // up negitive, down positive
+
+    setDeadzoneValues();   
+  }
+
+  private void setDeadzoneValues() {
+    if (leftXAxis < .1 && leftXAxis > -.1) {
+      leftXAxisWDeadzone = 0;
+    } else {
+      leftXAxisWDeadzone = leftXAxis;
+    }
+    if (leftYAxis < .1 && leftYAxis > -.1) {
+      leftYAxisWDeadzone = 0;
+    } else {
+      leftYAxisWDeadzone = leftYAxis;
+    }
+    if (rightXAxis < .1 && rightXAxis > -.1) {
+      rightXAxisWDeadzone = 0;
+    } else {
+      rightXAxisWDeadzone = rightXAxis;
+    }
+    if (rightYAxis < .1 && rightYAxis > -.1) {
+      rightYAxisWDeadzone = 0;
+    } else {
+      rightYAxisWDeadzone = rightYAxis;
+    }
+  }
+
   /**
    * This function is called periodically during test mode.
    */
