@@ -20,6 +20,7 @@ import edu.wpi.cscore.CvSink;
 import edu.wpi.cscore.CvSource;
 import edu.wpi.cscore.UsbCamera;
 import edu.wpi.first.cameraserver.CameraServer;
+import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Joystick;
@@ -27,6 +28,8 @@ import edu.wpi.first.wpilibj.Spark;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
+import edu.wpi.first.wpilibj.shuffleboard.BuiltInWidgets;
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
@@ -240,24 +243,32 @@ public class Robot extends TimedRobot {
   private void getAndSendPigeonStatus() {
     double[] ypr = new double[3];
     pigeon.getYawPitchRoll(ypr);
+    /*
     SmartDashboard.putNumberArray("YPR", ypr);
     SmartDashboard.putNumber("Yaw", ypr[0]);
     SmartDashboard.putNumber("Pitch", ypr[1]);
     SmartDashboard.putNumber("Roll", ypr[2]);
+    */
 
     double[] accelxyz = new double[3];
     pigeon.getAccelerometerAngles(accelxyz);
+    /*
     SmartDashboard.putNumberArray("Accel", accelxyz);
     SmartDashboard.putNumber("Accel x", accelxyz[0]);
     SmartDashboard.putNumber("Accel y", accelxyz[1]);
     SmartDashboard.putNumber("Accel z", accelxyz[2]);
+    */
 
     double[] gyroxyz = new double[3];
     pigeon.getRawGyro(gyroxyz);
+    /*
     SmartDashboard.putNumberArray("Gryo", gyroxyz);
     SmartDashboard.putNumber("Gyro x", gyroxyz[0]);
     SmartDashboard.putNumber("Gyro y", gyroxyz[1]);
+    */
     SmartDashboard.putNumber("Gyro z", gyroxyz[2]);
+    NetworkTable gyro = Shuffleboard.getTab("SmartDashboard").add("gyro", gyroxyz[2]).withWidget(BuiltInWidgets.kGyro).getEntry();
+    
     
   }
 
