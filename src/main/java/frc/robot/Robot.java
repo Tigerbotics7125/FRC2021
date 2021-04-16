@@ -24,12 +24,16 @@ import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.wpilibj.Sendable;
+import edu.wpi.first.wpilibj.SendableBase;
 import edu.wpi.first.wpilibj.Spark;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
+import edu.wpi.first.wpilibj.interfaces.Gyro;
 import edu.wpi.first.wpilibj.shuffleboard.BuiltInWidgets;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
+import edu.wpi.first.wpilibj.smartdashboard.SendableBuilder;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
@@ -41,148 +45,142 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
  * project.
  */
 public class Robot extends TimedRobot {
+
+  // Autonomous
   private static final String kDefaultAuto = "Default";
   private static final String kCustomAuto = "My Auto";
   private String m_autoSelected;
   private final SendableChooser<String> m_chooser = new SendableChooser<>();
 
-  UsbCamera camera1;
-  UsbCamera camera2;
-  NetworkTableEntry cameraSelection;
+  // Cameras
+  private UsbCamera camera1;
+  private UsbCamera camera2;
 
-  private Joystick gamepad;
-
+  // Victor
   private WPI_VictorSPX leftMotor;
   private WPI_VictorSPX rightMotor;
-  private DifferentialDrive chassis;
 
+  // Talon
   private WPI_TalonSRX uptakeOne;
   private WPI_TalonSRX hood;
   private WPI_TalonSRX shooter;
+  private WPI_TalonSRX pigeonTalon;
 
+  // Spark
   private Spark intake;
   private Spark uptakeTwo;
   private Spark uptakeThree;
   private Spark drawBridge;
 
+  // WPI
+  private DifferentialDrive chassis;
   private DigitalInput drawBridgeDown;
 
-  private boolean index = false;
+  // primitives
+  private boolean index;
   private double indexStart;
 
-  private WPI_TalonSRX pigeonTalon;
-  private PigeonIMU pigeon;
-
+  // gamepad
+  private Joystick gamepad;
   private boolean aButton;
   private boolean bButton;
   private boolean xButton;
   private boolean yButton;
   private boolean leftBumper;
   private boolean rightBumper;
-  private double leftXAxis; // left negitive, right positive
-  private double leftYAxis; // up negitive, down positive
-  private double leftTrigger; // no negitive
-  private double rightTrigger; // no negitive
-  private double rightXAxis; // left negitive, right positive
-  private double rightYAxis; // up negitive, down positive
-
+  private double leftXAxis; // left negative, right positive
+  private double leftYAxis; // up negative, down positive
+  private double leftTrigger; // no negative
+  private double rightTrigger; // no negative
+  private double rightXAxis; // left negative, right positive
+  private double rightYAxis; // up negative, down positive
   private double leftXAxisWDeadzone;
   private double leftYAxisWDeadzone;
   private double rightXAxisWDeadzone;
   private double rightYAxisWDeadzone;
 
-  /**
-   * This function is run when the robot is first started up and should be used
-   * for any initialization code.
-   */
+  // other
+  private PigeonIMU pigeon;
+
   @Override
   public void robotInit() {
+    // Autonomous
     m_chooser.setDefaultOption("Default Auto", kDefaultAuto);
     m_chooser.addOption("My Auto", kCustomAuto);
     SmartDashboard.putData("Auto choices", m_chooser);
 
+    // Cameras
     camera1 = CameraServer.getInstance().startAutomaticCapture(0);
     camera2 = CameraServer.getInstance().startAutomaticCapture(1);
 
     gamepad = new Joystick(0);
 
+    // Victors
     leftMotor = new WPI_VictorSPX(0);
     rightMotor = new WPI_VictorSPX(1);
-    chassis = new DifferentialDrive(leftMotor, rightMotor);
 
+    // Talon
     uptakeOne = new WPI_TalonSRX(2);
     hood = new WPI_TalonSRX(3);
     shooter = new WPI_TalonSRX(4);
+    pigeonTalon = new WPI_TalonSRX(10);
 
+    // Spark
     intake = new Spark(0);
     uptakeTwo = new Spark(1);
     uptakeThree = new Spark(2);
     drawBridge = new Spark(3);
 
+    // WPI
+    chassis = new DifferentialDrive(leftMotor, rightMotor);
     drawBridgeDown = new DigitalInput(0);
 
-    // pigeon
-    pigeonTalon = new WPI_TalonSRX(10);
+    // primitives
+
+    // gamepad
+
+    // other
     pigeon = new PigeonIMU(pigeonTalon);
     pigeon.setYaw(0.0);
+
   }
 
-  /**
-   * This function is called every robot packet, no matter the mode. Use this for
-   * items like diagnostics that you want ran during disabled, autonomous,
-   * teleoperated and test.
-   *
-   * <p>
-   * This runs after the mode specific periodic functions, but before LiveWindow
-   * and SmartDashboard integrated updating.
-   */
   @Override
   public void robotPeriodic() {
   }
 
-  /**
-   * This autonomous (along with the chooser code above) shows how to select
-   * between different autonomous modes using the dashboard. The sendable chooser
-   * code works with the Java SmartDashboard. If you prefer the LabVIEW Dashboard,
-   * remove all of the chooser code and uncomment the getString line to get the
-   * auto name from the text box below the Gyro
-   *
-   * <p>
-   * You can add additional auto modes by adding additional comparisons to the
-   * switch structure below with additional strings. If using the SendableChooser
-   * make sure to add them to the chooser code above as well.
-   */
   @Override
   public void autonomousInit() {
     m_autoSelected = m_chooser.getSelected();
-    // m_autoSelected = SmartDashboard.getString("Auto Selector", kDefaultAuto);
     System.out.println("Auto selected: " + m_autoSelected);
   }
 
-  /**
-   * This function is called periodically during autonomous.
-   */
   @Override
   public void autonomousPeriodic() {
     switch (m_autoSelected) {
     case kCustomAuto:
-      // Put custom auto code here
+      // lower drawbridge until down
+      do {
+        drawBridge.set(-1);
+      } while (!drawBridgeDown.get());
+      // STOP WHEN DOWN
+      drawBridge.set(0);
+
       break;
     case kDefaultAuto:
     default:
-      // Put default auto code here
+      // lower drawbridge until down
+      do {
+        drawBridge.set(-1);
+      } while (!drawBridgeDown.get());
+      // STOP WHEN DOWN
+      drawBridge.set(0);
+
       break;
     }
 
-    // lower drawbridge until its down
-    if (!drawBridgeDown.get()) {
-      drawBridge.set(-1);
-    }
   }
 
-  /**
-   * This function is called periodically during operator control.
-   */
   @Override
   public void teleopPeriodic() {
 
@@ -210,7 +208,8 @@ public class Robot extends TimedRobot {
     shooter.set(ControlMode.PercentOutput, analogControl * divider);
   }
 
-  public void indexBall(boolean startIndexButton, boolean intakeButton, boolean manualUptakeTwoButton, boolean manualUptakeThreeButton, double analogBackoutButton) {
+  public void indexBall(boolean startIndexButton, boolean intakeButton, boolean manualUptakeTwoButton,
+      boolean manualUptakeThreeButton, double analogBackoutButton) {
     // intake, part of indexing, but not controlled by timer.
     if (intakeButton) {
       uptakeOne.set(ControlMode.PercentOutput, 1);
@@ -220,7 +219,8 @@ public class Robot extends TimedRobot {
       intake.set(0);
     }
 
-    // if you press the index button, and not currently index, start indexing and set the initial time to now.
+    // if you press the index button, and not currently index, start indexing and
+    // set the initial time to now.
     if (!index && startIndexButton) {
       index = true;
       indexStart = Timer.getFPGATimestamp();
@@ -258,32 +258,35 @@ public class Robot extends TimedRobot {
   }
 
   private void getAndSendPigeonStatus() {
+    // setting up values
     double[] ypr = new double[3];
-    pigeon.getYawPitchRoll(ypr);
-    /*
-     * SmartDashboard.putNumberArray("YPR", ypr); SmartDashboard.putNumber("Yaw",
-     * ypr[0]); SmartDashboard.putNumber("Pitch", ypr[1]);
-     * SmartDashboard.putNumber("Roll", ypr[2]);
-     */
-
     double[] accelxyz = new double[3];
-    pigeon.getAccelerometerAngles(accelxyz);
-    /*
-     * SmartDashboard.putNumberArray("Accel", accelxyz);
-     * SmartDashboard.putNumber("Accel x", accelxyz[0]);
-     * SmartDashboard.putNumber("Accel y", accelxyz[1]);
-     * SmartDashboard.putNumber("Accel z", accelxyz[2]);
-     */
-
     double[] gyroxyz = new double[3];
+    double compass;
+    // setting values
+    pigeon.getYawPitchRoll(ypr);
+    pigeon.getAccelerometerAngles(accelxyz);
     pigeon.getRawGyro(gyroxyz);
-    /*
-     * SmartDashboard.putNumberArray("Gryo", gyroxyz);
-     * SmartDashboard.putNumber("Gyro x", gyroxyz[0]);
-     * SmartDashboard.putNumber("Gyro y", gyroxyz[1]);
-     */
-    SmartDashboard.putNumber("Gyro z", gyroxyz[2]);
+    compass = pigeon.getCompassFieldStrength();
 
+    // send values to SmartDashboard, both as an array and values
+    // ypr
+    SmartDashboard.putNumberArray("Yaw Pitch Roll", ypr);
+    SmartDashboard.putNumber("Yaw", ypr[0]);
+    SmartDashboard.putNumber("Pitch", ypr[1]);
+    SmartDashboard.putNumber("Roll", ypr[2]);
+    // accel
+    SmartDashboard.putNumberArray("Accelerometer", accelxyz);
+    SmartDashboard.putNumber("X Acceleration", accelxyz[0]);
+    SmartDashboard.putNumber("Y Acceleration", accelxyz[1]);
+    SmartDashboard.putNumber("Z Acceleration", accelxyz[2]);
+    // gyro
+    SmartDashboard.putNumberArray("Gyroscope", gyroxyz);
+    SmartDashboard.putNumber("X Rotation", gyroxyz[0]);
+    SmartDashboard.putNumber("Y Rotation", gyroxyz[1]);
+    SmartDashboard.putNumber("Z Rotation", gyroxyz[2]);
+    // compass
+    SmartDashboard.putNumber("Compass", compass);
   }
 
   private void updateGamepadStatus() {
