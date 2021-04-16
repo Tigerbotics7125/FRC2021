@@ -124,7 +124,6 @@ public class Robot extends TimedRobot {
     // pigeon
     pigeonTalon = new WPI_TalonSRX(10);
     pigeon = new PigeonIMU(pigeonTalon);
-
     pigeon.setYaw(0.0);
   }
 
@@ -199,18 +198,18 @@ public class Robot extends TimedRobot {
       uptakeOne.set(ControlMode.PercentOutput, 1);
       intake.set(-.25);
     } else {
-      uptakeOne.set(ControlMode.PercentOutput, 0);
-      intake.set(0);
+      uptakeOne.set(ControlMode.PercentOutput, -1*leftTrigger);
+      intake.set(leftTrigger*.25);
     }
     if (rightBumper || index) {
       uptakeTwo.set(-1);
     } else {
-      uptakeTwo.set(0);
+      uptakeTwo.set(leftTrigger);
     }
     if (leftBumper || index) {
       uptakeThree.set(-1);
     } else {
-      uptakeThree.set(0);
+      uptakeThree.set(leftTrigger);
     }
 
     double curTime = Timer.getFPGATimestamp();
@@ -225,7 +224,7 @@ public class Robot extends TimedRobot {
     hood.set(ControlMode.PercentOutput, rightXAxisWDeadzone*.25);
     
     // chassis / drivechain
-    chassis.arcadeDrive(leftYAxisWDeadzone, leftXAxisWDeadzone);
+    chassis.arcadeDrive(leftYAxisWDeadzone*.5, leftXAxisWDeadzone*.5);
     
 
   }
@@ -267,7 +266,6 @@ public class Robot extends TimedRobot {
     SmartDashboard.putNumber("Gyro y", gyroxyz[1]);
     */
     SmartDashboard.putNumber("Gyro z", gyroxyz[2]);
-    NetworkTable gyro = Shuffleboard.getTab("SmartDashboard").add("gyro", gyroxyz[2]).withWidget(BuiltInWidgets.kGyro).getEntry();
     
     
   }
