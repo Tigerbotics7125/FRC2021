@@ -92,8 +92,8 @@ public class Robot extends TimedRobot {
   private double rightYAxisWDeadzone;
 
   /**
-   * This function is run when the robot is first started up and should be
-   * used for any initialization code.
+   * This function is run when the robot is first started up and should be used
+   * for any initialization code.
    */
   @Override
   public void robotInit() {
@@ -128,12 +128,13 @@ public class Robot extends TimedRobot {
   }
 
   /**
-   * This function is called every robot packet, no matter the mode. Use
-   * this for items like diagnostics that you want ran during disabled,
-   * autonomous, teleoperated and test.
+   * This function is called every robot packet, no matter the mode. Use this for
+   * items like diagnostics that you want ran during disabled, autonomous,
+   * teleoperated and test.
    *
-   * <p>This runs after the mode specific periodic functions, but before
-   * LiveWindow and SmartDashboard integrated updating.
+   * <p>
+   * This runs after the mode specific periodic functions, but before LiveWindow
+   * and SmartDashboard integrated updating.
    */
   @Override
   public void robotPeriodic() {
@@ -141,14 +142,15 @@ public class Robot extends TimedRobot {
 
   /**
    * This autonomous (along with the chooser code above) shows how to select
-   * between different autonomous modes using the dashboard. The sendable
-   * chooser code works with the Java SmartDashboard. If you prefer the
-   * LabVIEW Dashboard, remove all of the chooser code and uncomment the
-   * getString line to get the auto name from the text box below the Gyro
+   * between different autonomous modes using the dashboard. The sendable chooser
+   * code works with the Java SmartDashboard. If you prefer the LabVIEW Dashboard,
+   * remove all of the chooser code and uncomment the getString line to get the
+   * auto name from the text box below the Gyro
    *
-   * <p>You can add additional auto modes by adding additional comparisons to
-   * the switch structure below with additional strings. If using the
-   * SendableChooser make sure to add them to the chooser code above as well.
+   * <p>
+   * You can add additional auto modes by adding additional comparisons to the
+   * switch structure below with additional strings. If using the SendableChooser
+   * make sure to add them to the chooser code above as well.
    */
   @Override
   public void autonomousInit() {
@@ -163,13 +165,13 @@ public class Robot extends TimedRobot {
   @Override
   public void autonomousPeriodic() {
     switch (m_autoSelected) {
-      case kCustomAuto:
-        // Put custom auto code here
-        break;
-      case kDefaultAuto:
-      default:
-        // Put default auto code here
-        break;
+    case kCustomAuto:
+      // Put custom auto code here
+      break;
+    case kDefaultAuto:
+    default:
+      // Put default auto code here
+      break;
     }
 
     // lower drawbridge until its down
@@ -184,51 +186,67 @@ public class Robot extends TimedRobot {
   @Override
   public void teleopPeriodic() {
 
-    updateGamepadStatus();
+    // Pigeon
     getAndSendPigeonStatus();
 
-    drawbridge(yButton, xButton);
+    // gamepad & motors
+    updateGamepadStatus();
+    drawbridge(yButton, xButton); // drawbridge up, drawbridge down
+    indexBall(bButton, aButton, rightBumper, leftBumper, leftTrigger); // startIndex, intake, uptakeTwo, uptakeThree, backout
+    shooter(rightTrigger, 1); // analogControl, divider
+    hood(rightXAxisWDeadzone, .1); // analogControl, divider
+    arcadeDrive(leftYAxisWDeadzone, leftXAxisWDeadzone, .5); // drive, rotate, divider
+  }
 
-    // index
-    if (!index && bButton) {
-      index = true;
-      indexStart = Timer.getFPGATimestamp();
-    }
-    if (aButton) {
+  private void arcadeDrive(double drive, double rotate, double divider) {
+    chassis.arcadeDrive(drive * divider, rotate * divider);
+  }
+
+  private void hood(double analogControl, double divider) {
+    hood.set(ControlMode.PercentOutput, analogControl * divider);
+  }
+
+  private void shooter(double analogControl, double divider) {
+    shooter.set(ControlMode.PercentOutput, analogControl * divider);
+  }
+
+  public void indexBall(boolean startIndexButton, boolean intakeButton, boolean manualUptakeTwoButton, boolean manualUptakeThreeButton, double analogBackoutButton) {
+    // intake, part of indexing, but not controlled by timer.
+    if (intakeButton) {
       uptakeOne.set(ControlMode.PercentOutput, 1);
       intake.set(-.25);
     } else {
-      uptakeOne.set(ControlMode.PercentOutput, -1*leftTrigger);
-      intake.set(leftTrigger*.25);
-    }
-    if (rightBumper || index) {
-      uptakeTwo.set(-1);
-    } else {
-      uptakeTwo.set(leftTrigger);
-    }
-    if (leftBumper || index) {
-      uptakeThree.set(-1);
-    } else {
-      uptakeThree.set(leftTrigger);
+      uptakeOne.set(ControlMode.PercentOutput, 0);
+      intake.set(0);
     }
 
+    // if you press the index button, and not currently index, start indexing and set the initial time to now.
+    if (!index && startIndexButton) {
+      index = true;
+      indexStart = Timer.getFPGATimestamp();
+    }
+
+    // uptakeTwo
+    if (index || manualUptakeTwoButton) {
+      uptakeTwo.set(-1);
+    } else {
+      uptakeTwo.set(-1 * analogBackoutButton);
+    }
+
+    // UptakeThree
+    if (index || manualUptakeThreeButton) {
+      uptakeThree.set(-1);
+    } else {
+      uptakeThree.set(analogBackoutButton);
+    }
+
+    // stop index if time is up
     double curTime = Timer.getFPGATimestamp();
     if (curTime > indexStart + 4 && index) {
       index = false;
     }
-
-    // shooter
-    shooter.set(ControlMode.PercentOutput, rightTrigger*1);
-
-    // hood
-    hood.set(ControlMode.PercentOutput, rightXAxisWDeadzone*.25);
-    
-    // chassis / drivechain
-    chassis.arcadeDrive(leftYAxisWDeadzone*.5, leftXAxisWDeadzone*.5);
-    
-
   }
-  
+
   private void drawbridge(boolean upButton, boolean downButton) {
     if (upButton) {
       drawBridge.set(1);
@@ -243,31 +261,29 @@ public class Robot extends TimedRobot {
     double[] ypr = new double[3];
     pigeon.getYawPitchRoll(ypr);
     /*
-    SmartDashboard.putNumberArray("YPR", ypr);
-    SmartDashboard.putNumber("Yaw", ypr[0]);
-    SmartDashboard.putNumber("Pitch", ypr[1]);
-    SmartDashboard.putNumber("Roll", ypr[2]);
-    */
+     * SmartDashboard.putNumberArray("YPR", ypr); SmartDashboard.putNumber("Yaw",
+     * ypr[0]); SmartDashboard.putNumber("Pitch", ypr[1]);
+     * SmartDashboard.putNumber("Roll", ypr[2]);
+     */
 
     double[] accelxyz = new double[3];
     pigeon.getAccelerometerAngles(accelxyz);
     /*
-    SmartDashboard.putNumberArray("Accel", accelxyz);
-    SmartDashboard.putNumber("Accel x", accelxyz[0]);
-    SmartDashboard.putNumber("Accel y", accelxyz[1]);
-    SmartDashboard.putNumber("Accel z", accelxyz[2]);
-    */
+     * SmartDashboard.putNumberArray("Accel", accelxyz);
+     * SmartDashboard.putNumber("Accel x", accelxyz[0]);
+     * SmartDashboard.putNumber("Accel y", accelxyz[1]);
+     * SmartDashboard.putNumber("Accel z", accelxyz[2]);
+     */
 
     double[] gyroxyz = new double[3];
     pigeon.getRawGyro(gyroxyz);
     /*
-    SmartDashboard.putNumberArray("Gryo", gyroxyz);
-    SmartDashboard.putNumber("Gyro x", gyroxyz[0]);
-    SmartDashboard.putNumber("Gyro y", gyroxyz[1]);
-    */
+     * SmartDashboard.putNumberArray("Gryo", gyroxyz);
+     * SmartDashboard.putNumber("Gyro x", gyroxyz[0]);
+     * SmartDashboard.putNumber("Gyro y", gyroxyz[1]);
+     */
     SmartDashboard.putNumber("Gyro z", gyroxyz[2]);
-    
-    
+
   }
 
   private void updateGamepadStatus() {
@@ -284,7 +300,7 @@ public class Robot extends TimedRobot {
     rightXAxis = gamepad.getRawAxis(4); // left negitive, right positive
     rightYAxis = gamepad.getRawAxis(5); // up negitive, down positive
 
-    setDeadzoneValues();   
+    setDeadzoneValues();
   }
 
   private void setDeadzoneValues() {
