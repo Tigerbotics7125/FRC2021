@@ -22,6 +22,7 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import com.ctre.phoenix.motorcontrol.FeedbackDevice;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -88,6 +89,7 @@ public class Robot extends TimedRobot {
   // other
   private PigeonIMU pigeon;
 
+  private int _loops;
   @Override
   public void robotInit() {
     // Autonomous
@@ -107,7 +109,10 @@ public class Robot extends TimedRobot {
 
     // Talon
     uptakeOne = new WPI_TalonSRX(2);
+
     hood = new WPI_TalonSRX(3);
+    setUpHood();
+
     shooter = new WPI_TalonSRX(4);
     pigeonTalon = new WPI_TalonSRX(10);
 
@@ -176,9 +181,10 @@ public class Robot extends TimedRobot {
     // gamepad & motors
     updateGamepadStatus();
     drawbridge(yButton, xButton); // drawbridge up, drawbridge down
-    indexBall(bButton, aButton, rightBumper, leftBumper, leftTrigger); // startIndex, intake, uptakeTwo, uptakeThree, backout
+    indexBall(bButton, aButton, rightBumper, leftBumper, leftTrigger); // startIndex, intake, uptakeTwo, uptakeThree,
+                                                                       // backout
     shooter(rightTrigger, 1); // analogControl, divider
-    hood(rightXAxisWDeadzone, .1); // analogControl, divider
+    hood(rightXAxisWDeadzone, .25); // analogControl, divider
     arcadeDrive(leftYAxisWDeadzone, leftXAxisWDeadzone, .5); // drive, rotate, divider
   }
 
@@ -186,8 +192,112 @@ public class Robot extends TimedRobot {
     chassis.arcadeDrive(drive * divider, rotate * divider);
   }
 
+  private void setUpHood(){
+    hood.configSelectedFeedbackSensor(FeedbackDevice.CTRE_MagEncoder_Relative, Constants.kPIDLoopIdx,
+        Constants.kTimeoutMs);
+    /* Ensure sensor is positive when output is positive */
+    hood.setSensorPhase(Constants.kSensorPhase);
+    _loops=0;
+    /**
+     * Set based on what direction you want forward/positive to be. This does not
+     * affect sensor phase.
+     */
+    hood.setInverted(Constants.kMotorInvert);
+
+    /* Config the peak and nominal outputs, 12V means full */
+    hood.configNominalOutputForward(0, Constants.kTimeoutMs);
+    hood.configNominalOutputReverse(0, Constants.kTimeoutMs);
+    hood.configPeakOutputForward(1, Constants.kTimeoutMs);
+    hood.configPeakOutputReverse(-1, Constants.kTimeoutMs);
+
+    /**
+     * Config the allowable closed-loop error, Closed-Loop output will be neutral
+     * within this range. See Table in Section 17.2.1 for native units per rotation.
+     */
+    hood.configAllowableClosedloopError(0, Constants.kPIDLoopIdx, Constants.kTimeoutMs);
+
+    /* Config Position Closed Loop gains in slot0, tsypically kF stays zero. */
+    hood.config_kF(Constants.kPIDLoopIdx, Constants.kGains.kF, Constants.kTimeoutMs);
+    hood.config_kP(Constants.kPIDLoopIdx, Constants.kGains.kP, Constants.kTimeoutMs);
+    hood.config_kI(Constants.kPIDLoopIdx, Constants.kGains.kI, Constants.kTimeoutMs);
+    hood.config_kD(Constants.kPIDLoopIdx, Constants.kGains.kD, Constants.kTimeoutMs);
+
+    /**
+     * Grab the 360 degree position of the MagEncoder's absolute position, and
+     * intitally set the relative sensor to match.
+     */
+    int absolutePosition = hood.getSensorCollection().getPulseWidthPosition();
+
+    /* Mask out overflows, keep bottom 12 bits */
+    absolutePosition &= 0xFFF;
+    if (Constants.kSensorPhase) {
+      absolutePosition *= -1;
+    }
+    if (Constants.kMotorInvert) {
+      absolutePosition *= -1;
+    }
+
+    /* Set the quadrature (relative) sensor to match absolute */
+    hood.setSelectedSensorPosition(absolutePosition, Constants.kPIDLoopIdx, Constants.kTimeoutMs);
+
+  }
   private void hood(double analogControl, double divider) {
-    hood.set(ControlMode.PercentOutput, analogControl * divider);
+    /* Get Talon/Victor's current output percentage */
+		double motorOutput = hood.getMotorOutputPercent();
+    StringBuilder _sb=new StringBuilder();
+		/* Deadband gamepad */
+		if (Math.abs(analogControl) < 0.10) {
+			/* Within 10% of zero */
+			analogControl = 0;
+		}
+
+		/* Prepare line to print */
+		_sb.append("\tout:");
+		/* Cast to int to remove decimal places */
+		_sb.append((int) (motorOutput * 100));
+		_sb.append("%");	// Percent
+
+		_sb.append("\tpos:");
+		_sb.append(hood.getSelectedSensorPosition(0));
+		_sb.append("u"); 	// Native units
+
+		/**
+		 * When button 1 is pressed, perform Position Closed Loop to selected position,
+		 * indicated by Joystick position x10, [-10, 10] rotations
+		 */
+	//	if (!_lastButton1 && button1) {
+			/* Position Closed Loop */
+
+			/* 10 Rotations * 4096 u/rev in either direction */
+			double targetPositionRotations = analogControl * 10.0 * 4096;
+			hood.set(ControlMode.Position, targetPositionRotations);
+		//}
+
+
+		/* If Talon is in position closed-loop, print some more info */
+		if (hood.getControlMode() == ControlMode.Position) {
+			/* ppend more signals to print when in speed mode. */
+			_sb.append("\terr:");
+			_sb.append(hood.getClosedLoopError(0));
+			_sb.append("u");	// Native Units
+
+			_sb.append("\ttrg:");
+			_sb.append(targetPositionRotations);
+			_sb.append("u");	/// Native Units
+		}
+
+		/**
+		 * Print every ten loops, printing too much too fast is generally bad
+		 * for performance.
+		 */
+		if (++_loops >= 10) {
+			_loops = 0;
+			System.out.println(_sb.toString());
+		}
+
+		/* Reset built string for next loop */
+		_sb.setLength(0);
+//    hood.set(ControlMode.PercentOutput, analogControl * divider);
   }
 
   private void shooter(double analogControl, double divider) {
