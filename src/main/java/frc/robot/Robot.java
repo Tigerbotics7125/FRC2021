@@ -57,6 +57,7 @@ public class Robot extends TimedRobot {
   // hood is a talon, but uses Motor Postion class
   private WPI_TalonSRX leftMotor;
   private WPI_TalonSRX rightMotor;
+  private WPI_TalonSRX hoodTalon;
   private WPI_TalonSRX pigeonTalon;
 
 
@@ -100,6 +101,7 @@ public class Robot extends TimedRobot {
   //DifferentialDriveKinematics kinematics = new DifferentialDriveKinematics(Units.inchesToMeters(23));
   // other
   private PigeonIMU pigeon;
+  private double time;
 
   @Override
   public void robotInit() {
@@ -122,14 +124,15 @@ public class Robot extends TimedRobot {
     // Talon
     leftMotor = new WPI_TalonSRX(2);
     rightMotor = new WPI_TalonSRX(3);
+    hoodTalon = new WPI_TalonSRX(4);
 
-    pigeonTalon = new WPI_TalonSRX(10);
+    pigeonTalon = new WPI_TalonSRX(5);
 
     // Spark
     intake = new Spark(0);
     uptakeTwo = new Spark(1);
-    uptakeThree = new Spark(2);
-    drawBridge = new Spark(3);
+    drawBridge = new Spark(2);
+    uptakeThree = new Spark(3);
 
     // WPI
     chassis = new DifferentialDrive(leftMotor, rightMotor);
@@ -144,9 +147,9 @@ public class Robot extends TimedRobot {
     // other
     pigeon = new PigeonIMU(pigeonTalon);
     pigeon.setYaw(0.0);
-
+    
     //PID Controls
-    hood = new MotorPosition(3);
+    //hood = new MotorPosition(4);
   }
 
   @Override
@@ -155,26 +158,42 @@ public class Robot extends TimedRobot {
 
   @Override
   public void autonomousInit() {
+    SmartDashboard.putData(m_chooser);
     m_autoSelected = m_chooser.getSelected();
     System.out.println("Auto selected: " + m_autoSelected);
+    time = Timer.getFPGATimestamp();
   }
 
   @Override
   public void autonomousPeriodic() {
     switch (m_autoSelected) {
-    case kCustomAuto:
-      // lower drawbridge until down
+    case kCustomAuto: {
+      /*/ lower drawbridge until down
       do {
         drawBridge.set(-1);
       } while (!drawBridgeDown.get());
       // STOP WHEN DOWN
       drawBridge.set(0);
-
-      break;
+      */
+     while (Timer.getFPGATimestamp() - time < 4) {
+       drawbridge(false, true);
+       arcadeDrive(1, 0, .5);
+     }
+     time = Timer.getFPGATimestamp();
+     while (Timer.getFPGATimestamp() - time < 3) {
+       drawbridge(false, true);
+     }
+     time = Timer.getFPGATimestamp();
+     while (Timer.getFPGATimestamp() - time < 1) {
+       arcadeDrive(-1, 0, 1);
+     }
+     m_autoSelected = "Default";
+    }
     case kDefaultAuto:
     default:
       break;
     }
+
 
   }
 
@@ -193,12 +212,25 @@ public class Robot extends TimedRobot {
 
     // gamepad & motors
     updateGamepadStatus();
+    showGamepadOnSmartDashboard();
+    hood(rightYAxisWDeadzone, .2);
     drawbridge(yButton, xButton); // drawbridge up, drawbridge down
-    indexBall(bButton, aButton, rightBumper, leftBumper, leftTrigger); // startIndex, intake, uptakeTwo, uptakeThree,
+    indexBall(bButton, aButton, rightBumper, leftTrigger); // startIndex, intake, uptakeTwo, uptakeThree,
                                                                        // backout
     shooter(rightTrigger, 1); // analogControl, divider
     //hood.move(rightXAxisWDeadzone, .25); // analogControl, divider
-    arcadeDrive(leftYAxisWDeadzone, leftXAxisWDeadzone, .5); // drive, rotate, divider
+    arcadeDrive(leftYAxisWDeadzone, leftXAxisWDeadzone, 1); // drive, rotate, divider
+    
+    //hood.move(rightYAxisWDeadzone, .5);
+
+  }
+
+  private void hood (double analogInput, double divider) {
+    hoodTalon.set(ControlMode.PercentOutput, analogInput * divider);
+  }
+
+  private void showGamepadOnSmartDashboard() {
+    SmartDashboard.putNumber("right Y w/ D:", rightYAxisWDeadzone);
   }
 
   private void arcadeDrive(double drive, double rotate, double divider) {
@@ -209,17 +241,8 @@ public class Robot extends TimedRobot {
     shooter.set(ControlMode.PercentOutput, analogControl * divider);
   }
 
-  public void indexBall(boolean startIndexButton, boolean intakeButton, boolean manualUptakeTwoButton,
-      boolean manualUptakeThreeButton, double analogBackoutButton) {
-    // intake, part of indexing, but not controlled by timer.
-    if (intakeButton) {
-      uptakeOne.set(ControlMode.PercentOutput, 1);
-      intake.set(-.25);
-    } else {
-      uptakeOne.set(ControlMode.PercentOutput, 0);
-      intake.set(0);
-    }
-
+  public void indexBall(boolean startIndexButton, boolean intakeButton,
+      boolean manualUptakeThreeButton, double analogBackoutButton) {    
     // if you press the index button, and not currently index, start indexing and
     // set the initial time to now.
     if (!index && startIndexButton) {
@@ -227,11 +250,25 @@ public class Robot extends TimedRobot {
       indexStart = Timer.getFPGATimestamp();
     }
 
+    // Intake
+    if (index || intakeButton) {
+      intake.set(-.25);
+    } else {
+      intake.set(analogBackoutButton * .25);
+    }
+    
+    // uptakeOne
+    if (index) {
+      uptakeOne.set(ControlMode.PercentOutput, .5);
+    } else {
+      uptakeOne.set(ControlMode.PercentOutput, analogBackoutButton * -.5);
+    }
+
     // uptakeTwo
-    if (index || manualUptakeTwoButton) {
+    if (index) {
       uptakeTwo.set(-1);
     } else {
-      uptakeTwo.set(-1 * analogBackoutButton);
+      uptakeTwo.set(1 * analogBackoutButton);
     }
 
     // UptakeThree
