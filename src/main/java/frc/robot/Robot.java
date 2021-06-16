@@ -173,17 +173,9 @@ public class Robot extends TimedRobot {
     drawBridge.set(0);
     */
     if (initialRun == true) {
-      while (Timer.getFPGATimestamp() - time < 4) {
-        //drawbridge(false, true);
-        arcadeDrive(1, 0, .5);
-      }
-      time = Timer.getFPGATimestamp();
       while (Timer.getFPGATimestamp() - time < 3) {
         //drawbridge(false, true);
-      }
-      time = Timer.getFPGATimestamp();
-      while (Timer.getFPGATimestamp() - time < 1) {
-        //arcadeDrive(-1, 0, 1);
+        arcadeDrive(1, 0, .5);
       }
 
       initialRun = false;
@@ -193,16 +185,8 @@ public class Robot extends TimedRobot {
 
   @Override
   public void teleopPeriodic() {
-   // if(!hood.getSetUp())
-    //hood.setStart();
-    // Pigeon
-    //getAndSendPigeonStatus();
 
-    // Odometry
-
-    //odometry
-
-
+    getAndSendPigeonStatus();
 
     // gamepad & motors
     updateGamepadStatus();
@@ -212,11 +196,8 @@ public class Robot extends TimedRobot {
     indexBall(bButton, aButton, rightBumper, leftTrigger); // startIndex, intake, uptakeTwo, uptakeThree,
                                                                        // backout
     shooter(rightTrigger, 1); // analogControl, divider
-    //hood.move(rightXAxisWDeadzone, .25); // analogControl, divider
     arcadeDrive(leftYAxisWDeadzone, leftXAxisWDeadzone, 1); // drive, rotate, divider
     
-    //hood.move(rightYAxisWDeadzone, .5);
-
   }
 
   private void hood (double analogInput, double divider) {
