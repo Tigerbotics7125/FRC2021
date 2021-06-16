@@ -102,6 +102,8 @@ public class Robot extends TimedRobot {
   // other
   private PigeonIMU pigeon;
   private double time;
+  private boolean initialRun = true;
+
 
   @Override
   public void robotInit() {
@@ -158,42 +160,34 @@ public class Robot extends TimedRobot {
 
   @Override
   public void autonomousInit() {
-    SmartDashboard.putData(m_chooser);
-    m_autoSelected = m_chooser.getSelected();
-    System.out.println("Auto selected: " + m_autoSelected);
     time = Timer.getFPGATimestamp();
   }
 
   @Override
   public void autonomousPeriodic() {
-    switch (m_autoSelected) {
-    case kCustomAuto: {
-      /*/ lower drawbridge until down
-      do {
-        drawBridge.set(-1);
-      } while (!drawBridgeDown.get());
-      // STOP WHEN DOWN
-      drawBridge.set(0);
-      */
-     while (Timer.getFPGATimestamp() - time < 4) {
-       drawbridge(false, true);
-       arcadeDrive(1, 0, .5);
-     }
-     time = Timer.getFPGATimestamp();
-     while (Timer.getFPGATimestamp() - time < 3) {
-       drawbridge(false, true);
-     }
-     time = Timer.getFPGATimestamp();
-     while (Timer.getFPGATimestamp() - time < 1) {
-       arcadeDrive(-1, 0, 1);
-     }
-     m_autoSelected = "Default";
-    }
-    case kDefaultAuto:
-    default:
-      break;
-    }
+    /*/ lower drawbridge until down
+    do {
+      drawBridge.set(-1);
+    } while (!drawBridgeDown.get());
+    // STOP WHEN DOWN
+    drawBridge.set(0);
+    */
+    if (initialRun == true) {
+      while (Timer.getFPGATimestamp() - time < 4) {
+        //drawbridge(false, true);
+        arcadeDrive(1, 0, .5);
+      }
+      time = Timer.getFPGATimestamp();
+      while (Timer.getFPGATimestamp() - time < 3) {
+        //drawbridge(false, true);
+      }
+      time = Timer.getFPGATimestamp();
+      while (Timer.getFPGATimestamp() - time < 1) {
+        //arcadeDrive(-1, 0, 1);
+      }
 
+      initialRun = false;
+    }
 
   }
 
